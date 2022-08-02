@@ -1,0 +1,1002 @@
+---
+title: "Data Exploratory"
+author: "NARGES MALEK /"
+date: '2022-06-15'
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+read and import all the data.
+```{r}
+
+#__ Packages:
+
+library(readr)
+library(readxl)
+library(reshape2)
+library(data.table)
+library(stringr)
+library(dplyr)
+
+
+
+
+
+
+#________IMPORT DATA _________#
+
+## bumblebee data
+
+bumblebee <- read.csv(file = "C:\\Users\\Narges\\Desktop\\DataAnalytics\\CIND 820\\Bumble_Bee_Public_Data.csv")
+#### soil data
+
+soil <- read.csv(file ="C:\\Users\\Narges\\Desktop\\DataAnalytics\\CIND 820\\Soil_NNI_Monitoring_Data.csv")
+
+
+### drinking water data
+
+
+Drinking_Water_NNI_Data = read_excel("C:\\Users\\Narges\\Desktop\\DataAnalytics\\CIND 820\\Drinking_Water_NNI_Data.xlsx")
+
+#### stream water
+
+Multimedia_Stream_Neonic_Data = read_excel("C:\\Users\\Narges\\Desktop\\DataAnalytics\\CIND 820\\Multimedia_Stream_Neonic_Data.xlsx")
+
+### pollen data
+pollen <- read.csv(file = "C:\\Users\\Narges\\Desktop\\DataAnalytics\\CIND 820\\Pollen_Monitoring_Network_Data.csv")
+
+
+```
+
+Exploratory of bumblebee:  
+
+https://files.ontario.ca/moe_mapping/downloads/4Other/PHAP/Bumble_Bee_Public_Data.csv
+
+```{r}
+# bumblebee
+
+str(bumblebee)
+# data has 247 observation and 65 columns,7 character variables, 2 logistic  and 56 integer variables.
+
+
+## due to error UTF-8 [1] should change
+names(bumblebee)[1] = "County"
+```
+
+ Check for normally distribution.
+
+```{r}
+summary(bumblebee)
+# by looking at the output data does not seems to be normally distributed.
+
+# Using shapiro-walik test to check for normaly distribution. null hypothesis = data normally distributed,if the p-value is less than 0.05 we reject the null hypothesis.
+
+shapiro.test(bumblebee$bimaculatus.total)
+shapiro.test(bumblebee$griseocollis.total)
+shapiro.test(bumblebee$bimaculatus.Queens)
+# p-value is less than 0.05 , data is not normally distributed.
+```
+
+Check for missing value.
+
+```{r}
+
+sum(is.na(bumblebee))
+sapply(bumblebee, function(x) sum(is.na(x)))
+# there are 497 missing values in the "bumblebee" data. most in "X.1" and "X" variables, have more than %50 missing values.
+```
+
+
+ Show bees frequency distribution on histogram.
+
+```{r}
+hist( bumblebee$bimaculatus.total, col = "beige", main = "Bee"
+      , xlab = bumblebee$bimaculatus.total , labels = TRUE , border = "dark green" )
+# Show frequency of a bee species, "bimaculatus".
+```
+
+ Check for duplicated data points.
+ 
+```{r}
+table(duplicated(bumblebee))
+#there is no duplication in data rows.
+```
+ 
+Create the sub-set of Bumblebee dataset with input variables for model called "bb". 
+
+```{r}
+bb <- bumblebee[-c(64,65)]
+#deleting 2 columns, "X.1" and "X" contain %100 missing value, there are 3 missing values in data. fervidus.Queens, citrinus.males, auricomus.males columns each carry one missing value.
+sapply(bb, function(x) sum(is.na(x)))
+###bb<- na.omit(bb)
+sum(is.na(bb))
+# There is no missing value in the data.
+dim(bb)
+
+bb <- bb[-c(2,7)]
+# variable "MOECC.Site.Number" and "Year" not needed for modeling, reachable from date column.
+
+head(bb)
+# add selected columns to a data frame named "bb" to predict model,"bb" has 246 observation and 62 variables and dataset contains 3 missing values.
+```
+
+ It seems data does not have any NA, but by looking at the data itself, some rows are empty , at "Flowers.Bees.Collected.on" and Flowers.in.bloom variables, convert all the empty datapoints to NA.
+ 
+```{r}
+bb[bb==""]=NA 
+sum(is.na(bb))
+sapply(bb, function(x) sum(is.na(x)))
+# Flowers.in.bloom has more than %67 missing values and Flowers.Bees.Collected.on has more than %45 missing values. These to variables should be removed.
+names(bb)
+bb <- bb[-c(60,61)]
+
+#bb <- na.omit(bb)
+#sum(is.na(bb))
+# There is no missing value in the "bb" dataset.
+```
+ 
+ Convert sample.date data type from character to date type for smoother performance.
+ 
+```{r}
+bb$Sample.date <- as.Date(bb$Sample.date,format = '%m/%d/%Y')
+
+# Check if its change correctly.
+class(bb$Sample.date)
+
+```
+
+ Variable analysis for "bb".
+ 
+```{r}
+# variable "site.type"
+
+table(bb$Site.Type)
+# shows 3 different land type samples collected.
+levels(as.factor(bb$Site.Type))
+
+# change site.type levels names for information integrity .
+
+bb$Site.Type[bb$Site.Type=='Agri']='Agricultural'
+bb$Site.Type[bb$Site.Type=='Agriculture']='Agricultural'
+
+levels(as.factor(bb$Site.Type))
+table(bb$Site.Type)
+#________________________________________________________________ 
+
+## Variable "County"
+
+
+table(bb$County)
+nlevels(as.factor(bb$County))
+levels(as.factor(bb$County))
+# samples collected from 43 different locations in southwest Ontario.
+
+#________________________________________________________________
+
+
+## variable "Sample.date"
+table(bb$Sample.date)
+min(bb$Sample.date)
+max(bb$Sample.date)
+# Samples collected in May to August from 2015 to 2017.
+#________________________________________________________________
+
+# different species of bee population.
+sum(bumblebee$bimaculatus.total )
+sum(bumblebee$griseocollis.total)
+sum(bumblebee$impatiens.total)
+sum(bumblebee$fervidus.total)
+sum(bumblebee$borealis.total)
+sum(bumblebee$rufocinctus.total)
+sum(bumblebee$pensylvanicus.total)
+sum(bumblebee$vagans.total)
+sum(bumblebee$ternarius.total)
+sum(bumblebee$perplexus.total)
+sum(bumblebee$citrinus.total)
+sum(bumblebee$auricomus.total)
+sum(bumblebee$terricola.total)
+sum(bumblebee$flavidus.total)
+
+# impatiens , bimaculatus, griseocollis are the 3 main bee kind of 14 different bee type that sampled in "bb" dataset.
+
+```
+
+ Make a column named bee.total that carries number of all bees in each row/sample location and add to "bb" dataset.
+ 
+```{r}
+names(bb)
+bt <- bb[c(9,13,17,21,25,29,33,37,41,45,48,52,56,59)]
+str(bt)
+bb$Bee.Total <- rowSums(bt,na.rm = TRUE)
+hist(bb$Bee.Total)
+```
+ Make a new column named Queen.Total that carries total number of all different kinds of queens in each sampling location and add to "bb" dataset.
+```{r}
+bq <- bb[c(6,10,14,18,22,26,30,34,38,42,46,49,53,57)]
+bb$Queen.Total <- rowSums(bq,na.rm = TRUE)
+```
+
+ Make a new column named Worker.Total that carries total number of all bee worker provide in the data.
+```{r}
+bw <- bb[c(7,11,15,19,23,27,31,35,39,43,50,54)]
+bb$Worker.Total <- rowSums(bw,na.rm = TRUE)
+
+# there is no data for  flavidus workers and citrinus workers in our dataset.
+head(bb)
+```
+
+add a column named Male.Total to "bb" data set.
+
+```{r}
+bm <- bb[c(8,12,16,20,24,28,32,36,40,44,47,51,55,58)]
+bb$Male.Total <- rowSums(bm,na.rm = TRUE)
+
+head(bb)
+```
+ 
+ Convert characters to factor for smoother performance.
+
+```{r}
+#bb$County <- as.factor(bb$County)
+#bb$Site.Type <- as.factor(bb$Site.Type)
+```
+
+Give all the variable unique names to prepared for merge all the data.
+```{r}
+# Use "dplyr" package for rename function.
+names(bb)
+dim(bb)
+
+
+
+bb <- rename(bb,"bb.Loc"="County")
+bb <- rename(bb,"bb.Site.Type"="Site.Type")
+bb <- rename(bb,"bb.Date"="Sample.date")
+bb$bb.site <- bumblebee$MOECC.Site.Number
+
+```
+
+ Exploratory of Soil Data:
+ 
+https://files.ontario.ca/moe_mapping/downloads/4Other/PHAP/Soil_NNI_Monitoring_Data.csv
+
+```{r}
+# Soil data:
+
+str(soil)
+sum(is.na(soil))
+sapply(soil, function(x) sum(is.na(x)))
+# data has 6776 rows/observation and 13 columns/variables,8 character, 4 integer and 1 numeric variables. Soil data set contains 608 missing values, that shows all is in "value" column.
+
+```
+
+ check for normally distribution.
+ 
+```{r} 
+summary(soil)
+hist(soil$Value)
+## the soil data is not normally distributed.
+```
+
+ Variables analysis for soil data.
+ 
+```{r}
+
+# Variable "Watershed"
+
+table(soil$Watershed)
+levels(as.factor(soil$Watershed))
+# Shows data collected from 5 different location. "Big Creek","Garvey Glen Creek"    "Little Ausable Creek", "North Creek" and "White Ash Creek".
+#________________________________________________________________
+
+# Variable "Site"
+
+table(soil$Site)
+levels(as.factor(soil$Site))
+# Shows samples collected from 8 different sites in 5 different location. Need "Watershed" and "Site" variables in model.
+#________________________________________________________________
+
+# Variable "Soil.Depth..cm."
+
+table(soil$Soil.Depth..cm.)
+levels(as.factor(soil$Soil.Depth..cm.))
+# Shows Soil samples collected from 2 different depth(1-15 and 20-30) almost equally.
+#________________________________________________________________
+
+# Variable "Season"
+
+table(soil$Season)
+levels(as.factor(soil$Season))
+# Shows samples collected at witch season. All the samples collected from spring to fall. This variable is not necessarily for our model, information can be deducted from "Date variable. 
+#________________________________________________________________
+
+
+# Variable "Parameter.Name
+
+table(soil$Parameter.Name)
+levels(as.factor(soil$Parameter.Name))
+
+# Make similar text for each insecticides.
+soil$Parameter.Name[soil$Parameter.Name=="   Acetamiprid"]= "Acetamiprid"
+soil$Parameter.Name[soil$Parameter.Name=="   Dinotefuran"]="Dinotefuran"
+soil$Parameter.Name[soil$Parameter.Name=="   Imidacloprid"]="Imidacloprid"    
+soil$Parameter.Name[soil$Parameter.Name=="   Thiacloprid"]="Thiacloprid"
+soil$Parameter.Name[soil$Parameter.Name=="   Clothianidin"]="Clothianidin"
+soil$Parameter.Name[soil$Parameter.Name=="   Flonicamid"]="Flonicamid"
+soil$Parameter.Name[soil$Parameter.Name=="   Nitenpyram" ]="Nitenpyram"
+soil$Parameter.Name[soil$Parameter.Name=="   Thiamethoxam"]="Thiamethoxam"
+
+levels(as.factor(soil$Parameter.Name))
+# There are 8 different groups of Neonicotinoid insecticides measured in soil samples.
+#________________________________________________________________
+
+
+# Variable "X.MDL.flag"
+
+table(soil$X.MDL.flag)
+# Unlabeled data point shows samples higher than threshold.(>MDL). Should be changed to dummy variable.
+#________________________________________________________________
+
+# Variable "X"
+
+table(soil$X)
+# The information variable"X" carries is not clear.
+#________________________________________________________________
+
+# Variable "Field.Growth.Stage"
+
+table(soil$Field.Growth.Stage)
+levels(as.factor(soil$Field.Growth.Stage))
+
+# Soil samples collected during 4 different steps of planting. "POST-SEEDING", "PRE-SEEDING", "GROWN CROP", "HARVESTED".
+# 3040 data points are unlabeled. Try to predict their labels by comparing each unlabeled samples date with labeled samples, otherwise should be assign as "NA".  
+#________________________________________________________________
+
+#Variable "Units"
+
+table(soil$Units)
+levels(as.factor(soil$Units))
+
+# Shows the measurement unit of insecticides in samples nano gram / gram. 
+#________________________________________________________________
+
+# variable "Collection.Year"
+
+table(soil$Collection.Year)
+min(soil$Collection.Year)
+max(soil$Collection.Year)
+
+# Soil samples taken from 2015 to 2018.
+#________________________________________________________________
+
+# Variable "Collection.Month"
+
+table(soil$Collection.Month)
+min(soil$Collection.Month)
+max(soil$Collection.Month)
+
+# from April to November each year from 2015 to 2018
+#________________________________________________________________
+
+# Variable "Collection.Day"
+
+table(soil$Collection.Day)
+levels(as.factor(soil$Collection.Day))
+
+# Soil samples collected almost every day.
+#________________________________________________________________
+
+# Variable "Value"
+
+hist(soil$Value)
+
+
+# strange columns in soil data
+names(soil)
+sum(!is.na(soil$Value))
+table(soil$Units)
+table(soil$`X.MDL.flag`)
+sum(soil$Units != "ng/g ")
+
+# to count numeric values in "Unints" column which seems to belong to "Value" column
+#sum(!is.na(as.numeric(soil$Units)))
+length(soil$Units[grep("[[:digit:]]", soil$Units)])
+levels(as.factor(soil$Units))
+soil[soil$Units != "   ng/g ", 8:13]
+levels(as.factor(soil$X.MDL.flag))
+sum(soil$X.MDL.flag == "   ng/g ", na.rm = TRUE)
+
+# there were some errors in soil original data(There were extra comma "," between 
+#columns "Parameter name" and "Value" in some rows (608 r0ws))
+
+# to correct for this error
+soil[is.na(soil$Value), c("Value", "Units", "X.MDL.flag")]
+soil[is.na(soil$Value), 'Value'] = as.numeric(unlist(soil[is.na(soil$Value), 'Units']))
+
+soil[grep("[[:digit:]]", soil$Units), 'Units'] = 'ng/g'
+soil[soil$Units=="   ng/g ", 'Units'] = 'ng/g'
+table(soil$Units)
+
+names(soil)
+soil <- soil[-13]
+
+
+```
+
+ create one column for sample date in date class.
+ 
+```{r} 
+soil$sd.Date <- as.Date(with(bb,paste(soil$Collection.Month,soil$Collection.Day,soil$Collection.Year,sep = "/")),'%m/%d/%Y')
+class(soil$sd.Date)
+
+
+```
+
+By closer look to "Value" and "Units" variables. find out that possible to extract missing values in "Value" variable from data point in  "Units" variable.
+Discover unexpected "," in some variables.
+
+```{r}
+
+table(soil$Season)
+table(soil$Watershed)
+table(soil$X.MDL.flag)
+
+
+```
+
+create Data frame for merge, named "sd" with selected column. 
+
+```{r}
+names(soil)
+### season column is included
+sd <- soil[c(1,6,7,8,9,10,12,13)]
+head(sd)
+```
+Check for NA.
+
+```{r}
+
+sum(is.na(sd))
+sapply(sd, function(x) sum(is.na(x)))
+
+#There is no missing value in data.
+```
+ Check for duplication.
+ 
+```{r} 
+
+table(duplicated(sd))
+# There is no duplicate data point in the "sd".
+
+```
+ Check for "Empty" data points.
+ 
+```{r} 
+sd[sd==""]=NA 
+sapply(sd, function(x) sum(is.na(x)))
+# Assign all empty data points to NA. Check the results.
+table(sd$Field.Growth.Stage)
+levels(as.factor(sd$Field.Growth.Stage))
+sum(is.na(sd))
+
+
+```
+ Convert all the characters data type to factor for better performance.
+
+```{r}
+
+sd$Watershed <- as.factor(sd$Watershed)
+sd$Soil.Depth..cm. <- as.factor(sd$Soil.Depth..cm.)
+sd$Field.Growth.Stage <- as.factor(sd$Field.Growth.Stage)
+sd$Parameter.Name <- as.factor(sd$Parameter.Name)
+sd$X.MDL.flag <- as.factor(sd$X.MDL.flag)
+str(sd)
+```
+
+
+
+Give all the variables unique names to prepared for merging all 5 data.
+```{r}
+names(sd)
+
+# Use "dplyr" package to use rename function.
+
+sd <-rename(sd,"sd.Type"="Field.Growth.Stage")
+sd <- rename(sd,"sd.Loc"="Watershed")
+sd <- rename(sd,"sd.Parameter"="Parameter.Name")
+sd <- rename(sd,"sd.Value"="Value")
+sd <- rename(sd,"sd.MDL"="X.MDL.flag")
+
+names(sd)
+str(sd)
+```
+
+Create data frame named "dw" for model from selected columns from Drinking_Water_NNI_Data.5. 
+
+https://files.ontario.ca/moe_mapping/downloads/4Other/PHAP/Drinking_Water_NNI_Data.xlsx
+
+```{r}
+
+## drinking  water data
+
+## imported data from excel. 
+str(Drinking_Water_NNI_Data)
+class(Drinking_Water_NNI_Data)
+#data has 2923 rows and 19 columns, 4 numeric variables, 2 logistic variables, 12 character variables and 1 POSIXt variable.
+```
+ Check for normally distribution.
+
+```{r} 
+shapiro.test(Drinking_Water_NNI_Data$`Detection Limit (DL)`)
+
+# p-value < 2.2e-16, it is not normally distributed. 
+```
+ Check for NA.
+ 
+```{r} 
+sum(is.na(Drinking_Water_NNI_Data))
+sapply(Drinking_Water_NNI_Data, function(x) sum(is.na(x)))
+# data has 11,388 missing data points." Remark Code" and " Result Qualifier" have %100 missing value, "Result Unit" has %96 missing value and " Sample Condition" has %93 missing value, all 4 variables should remove from data.
+```
+
+ Variable analysis for Drinking water data.
+
+```{r} 
+
+# Variable "Year"
+
+table(Drinking_Water_NNI_Data$Year)
+levels(as.factor(Drinking_Water_NNI_Data$Year))
+
+# Samples collected from 2015 to 2017. Almost %50 of samples taken during 2015.
+#_________________________________________________________________
+
+
+# Variable "Sample program"
+
+table(Drinking_Water_NNI_Data$`Sample program`)
+levels(as.factor(Drinking_Water_NNI_Data$`Sample program`))
+
+# Shows all the samples use one unique program. no need in model.
+#________________________________________________________________
+
+
+# Variabl "Drinking Water System Name"
+table(Drinking_Water_NNI_Data$`Drinking Water System Name`)
+levels(as.factor(Drinking_Water_NNI_Data$`Drinking Water System Name`))
+
+#can use these 5 location as sample location,it is matches with "sd"(Soil data) and "sw"(Stream Water data) on provided map in website.
+#________________________________________________________________
+
+
+# Variable "Sample Type"
+
+table(Drinking_Water_NNI_Data$`Sample Type`)
+levels(as.factor(Drinking_Water_NNI_Data$`Sample Type`))
+
+# Show water samples condition type, 3 different type "DISTRIBUTION", "RAW WATER" and "TREATED WATER".  
+#________________________________________________________________
+
+### replace level 'TREATED WATER' instead of 'DISTRIBUTION'
+Drinking_Water_NNI_Data[Drinking_Water_NNI_Data$`Sample Type` == 'DISTRIBUTION', 'Sample Type'] = 'TREATED WATER'
+
+
+
+
+# Variable "Sample Location"
+
+table(Drinking_Water_NNI_Data$`Sample Location`)
+levels(as.factor(Drinking_Water_NNI_Data$`Sample Location`))
+
+# Shoews samples taken location. Samples collected from 13 different water sours locations. Correct location/area name is not shown and its not usable for merge, will use "Drinking Water System Name" variable as location, it is matches with soil samples locations("Watershed" variable). 
+#________________________________________________________________
+
+
+# Variable "Station"
+
+table(Drinking_Water_NNI_Data$`Station #`)
+levels(as.factor(Drinking_Water_NNI_Data$`Station #`))
+# Samples collected from 13 different station.
+#________________________________________________________________
+
+
+# Variable "Sample Condition"
+
+table(Drinking_Water_NNI_Data$`Sample Condition`)
+levels(as.factor(Drinking_Water_NNI_Data$`Sample Condition`))
+
+# Shows condition of water samples just in one level. No need for model.
+#________________________________________________________________
+
+
+# Variable "Sample Date"
+
+table(Drinking_Water_NNI_Data$`Sample Date`)
+levels(as.factor(Drinking_Water_NNI_Data$`Sample Date`))
+max(Drinking_Water_NNI_Data$`Sample Date`)
+min(Drinking_Water_NNI_Data$`Sample Date`)
+
+# Samples are taken from May to January 2015 to 2017 every 5 to 7 days.
+#________________________________________________________________
+
+
+# Variable "Parameter Group"
+
+table(Drinking_Water_NNI_Data$`Parameter Group`)
+# Just shows that pesticides are group of neonicotinoid. Not useful information.
+#________________________________________________________________
+
+
+# Variable "Parameter"
+
+table(Drinking_Water_NNI_Data$Parameter)
+# shows 8 different group of neonicotinoid same as soil data.
+#________________________________________________________________
+
+# Variable Detection Limit (DL).
+levels(as.factor(Drinking_Water_NNI_Data$`Detection Limit (DL)`))
+#Shows 3 level of threshold for insecticide. 2, 5 and 10.
+#________________________________________________________________
+
+# Variable Detection Limit Unit
+
+levels(as.factor(Drinking_Water_NNI_Data$`Detection Limit Unit`))
+# Shows the measurement of residue in samples. nano gram / gram.
+#________________________________________________________________
+
+# Variable Result
+
+levels(as.factor(Drinking_Water_NNI_Data$Result))
+#Shows the amount of insecticide detected in drinking watre samples, threshold is >10 , residue from 10 to 90 units detected.
+
+```
+
+ create data frame named "dw" with selected columns for model.
+ 
+```{r} 
+
+names(Drinking_Water_NNI_Data)
+levels(as.factor(Drinking_Water_NNI_Data$Result))
+
+dw <- Drinking_Water_NNI_Data[c(3,5,9,12,14,16)]
+str(dw)
+sum(is.na(dw))
+# "dw" dataset has 2923 rows and 6 variables. No missing value.
+```
+
+ Change class of 4 character variables to factor for smoother performance.
+```{r} 
+dw$`Sample Type` <- as.factor(dw$`Sample Type`)
+dw$`Drinking Water System Name` <- as.factor(dw$`Drinking Water System Name`)
+dw$Parameter <- as.factor(dw$Parameter)
+###dw$Result <- as.factor(dw$Result)
+```
+ Convert "Sample Date" variable class from character to date.
+
+```{r} 
+dw$`Sample Date` <- as.Date(dw$`Sample Date`,format = "%Y%m%d")
+
+class(dw$`Sample Date`)
+```
+Change "Result" data type from "character" to "numeric" to performe better for modeling.
+
+```{r}
+
+#To have a numeric variable, all the input should be numeric. replace rows in result specified with "<DL" with the value of 'detection limit'.
+names(dw)
+dw$Result[dw$Result=="<DL"] <- dw$`Detection Limit (DL)`[dw$Result=="<DL"]
+levels(as.factor(dw$`Detection Limit (DL)`))
+class(dw$Result)
+dw$Result = as.numeric(dw$Result)
+class(dw$Result)
+summary(dw$Result)
+
+```
+
+Give all the variables unique name.
+```{r}
+# Use rename() from "dplyr" package.
+
+names(dw)
+dw <- rename(dw,"dw.Loc"="Drinking Water System Name")
+dw <- rename(dw,"dw.Type"="Sample Type")
+dw <- rename(dw,"dw.Date"="Sample Date")
+dw <- rename(dw,"dw.Parameter"="Parameter")
+dw <- rename(dw,"dw.MDL"="Detection Limit (DL)")
+dw <- rename(dw,"dw.Result"="Result")
+
+names(dw)
+```
+
+
+
+
+Exploratory of Multimedia_Stream_Neonic_Data  that shows residues concentrations in streamwater samples collected from streams in southern Ontario watersheds with primarily agricultural land use between 2015 and 2019.
+
+https://files.ontario.ca/moe_mapping/downloads/4Other/PHAP/Multimedia_Stream_Neonic_Data.xlsx
+
+```{r}
+# import data from excel.
+str(Multimedia_Stream_Neonic_Data)
+sum(is.na(Multimedia_Stream_Neonic_Data))
+sapply(Multimedia_Stream_Neonic_Data, function(x) sum(is.na(x)))
+
+# data has 5872 rows and 8 columns,2 "numeric" and 6 "Character" variables. All 1561 missing values detected in "RESULT VALUE QUALIFIER" variable,hence, needs to remove from data.
+```
+ Variable analysis.
+ 
+```{r}
+
+# Variable "SITE NAME"
+
+levels(as.factor(Multimedia_Stream_Neonic_Data$`SITE NAME`))
+
+### Samples collected from 6 different location. "BIG CREEK", "GARVEY GLEN", "LITTLE AUSABLE RIVER", "NORTH CREEK", "SPRING CREEK", "WHITE ASH CREEK". instead of "SPRING CREEK" , all same as "sd"(soil data) and "dw" (drinking water data).     
+#________________________________________________________________
+
+
+# Variable "SAMPLE DATE"
+
+table(Multimedia_Stream_Neonic_Data$`SAMPLE DATE`)
+nlevels(as.factor(Multimedia_Stream_Neonic_Data$`SAMPLE DATE`))
+min(Multimedia_Stream_Neonic_Data$`SAMPLE DATE`)
+max(Multimedia_Stream_Neonic_Data$`SAMPLE DATE`)
+
+#Samples collected from April to November 2015 to 2019 every 2 to 5 days.
+#________________________________________________________________
+
+
+## Variable "PARAMETER"
+
+table(Multimedia_Stream_Neonic_Data$PARAMETER)
+
+# 8 different group of neonicotinoid same as "sd" and "dw".
+#________________________________________________________________
+
+
+## Variable "SAMPLE TYPE-WET WEATHER-GRAB"
+
+table(Multimedia_Stream_Neonic_Data$`SAMPLE TYPE-WET WEATHER-GRAB`)
+# shows 2 different type of samples.
+#________________________________________________________________
+
+# Variable "RESULT"
+
+table(Multimedia_Stream_Neonic_Data$RESULT)
+levels(as.factor(Multimedia_Stream_Neonic_Data$RESULT))
+
+# Shows the amount of insecticide detected in stream water samples with minimum of 2 and maximum of 7600.
+#________________________________________________________________
+
+#Variable "RESULT UNIT"
+
+levels(as.factor(Multimedia_Stream_Neonic_Data$`RESULT UNIT`))
+# shows measurement of detected insecticide in samples. These information is not useful for modeling. 
+#________________________________________________________________
+
+
+# Variable "RESULT VALUE QUALIFIER"
+
+levels(as.factor(Multimedia_Stream_Neonic_Data$`RESULT VALUE QUALIFIER`))
+table(Multimedia_Stream_Neonic_Data$`RESULT VALUE QUALIFIER`)
+
+# Shows the threshhold for each sample.
+
+```
+ Add selected columns to a dataset named "sw".
+ 
+```{r} 
+names(Multimedia_Stream_Neonic_Data)
+sw <- Multimedia_Stream_Neonic_Data[-c(5,7,8)]
+head(sw)
+
+```
+
+Missing values in "RESULT VALUE QUALIFIER" : "NA" in this variable can be labeled as ">MDL".
+```{r}
+
+
+names(sw)
+###sw$`RESULT VALUE QUALIFIER`[sw$`RESULT VALUE QUALIFIER` == "NA"]=""
+
+
+###sw$`RESULT VALUE QUALIFIER`[sw$`RESULT VALUE QUALIFIER` == "NA"]<- ">MDL" 
+###levels(as.factor(sw$`RESULT VALUE QUALIFIER`))
+```
+
+ Convert all the characters to factor for better performance.
+
+```{r}
+names(sw)
+sw$`SITE NAME` <- as.factor(sw$`SITE NAME`)
+sw$`SAMPLE TYPE-WET WEATHER-GRAB` <- as.factor(sw$`SAMPLE TYPE-WET WEATHER-GRAB`)
+sw$PARAMETER <- as.factor(sw$PARAMETER)
+sw$`SAMPLE DATE` <- as.factor(sw$`SAMPLE DATE`)
+```
+
+ set the Sample Date column as date type.
+ 
+```{r} 
+
+sw$`SAMPLE DATE` <- as.Date(as.character(sw$`SAMPLE DATE`),format = '%Y%m%d')
+class(sw$`SAMPLE DATE`)
+head(sw)
+```
+Give unique names to all variable.
+
+```{r}
+# Use rename() from "dplyr" package.
+
+names(sw)
+
+sw <- rename(sw,"sw.Loc"="SITE NAME")
+sw <- rename(sw,"sw.Type"="SAMPLE TYPE-WET WEATHER-GRAB")
+sw <- rename(sw,"sw.PARAMETER"="PARAMETER")
+sw <- rename(sw,"sw.Date"="SAMPLE DATE")
+sw <- rename(sw,"sw.RESULT"="RESULT")
+names(sw)
+
+```
+
+
+
+
+P\pollen data shows residues concentrations in pollen samples collected from honeybee in southwest Ontario. 
+
+https://files.ontario.ca/moe_mapping/downloads/4Other/PHAP/Pollen_Monitoring_Network_Data.csv
+
+```{r}
+
+str(pollen)
+summary(pollen)
+# The data has 814 rows and 48 columns. not normally distributed. 
+```
+Check for NA.
+
+```{r}
+sum(is.na(pollen))
+sapply(pollen, function(x) sum(is.na(x)))
+## X" and "X.1" variables contain just "NA" and "Year" variable has more than %21 missing value and we have the information in "Sample.Collection.Date", hence all 3 should be remove from data.
+```
+Variable analysis for pollen data
+
+```{r}
+
+## variable "Site.Location.by.Upper.or.Single.Tier.Municipality"
+
+table(pollen$Site.Location.by.Upper.or.Single.Tier.Municipality)
+levels(as.factor(pollen$Site.Location.by.Upper.or.Single.Tier.Municipality))
+
+## samples collected from 25 different locations. some unlabled location.
+#________________________________________________________________
+
+
+## Variable "Sampling.Event.Type"
+
+table(pollen$Sampling.Event.Type)
+levels(as.factor(pollen$Sampling.Event.Type))
+
+# 4 steps and condition of samples. " Pre-Plant", " Post-Plant", " Corn Tassel", "Goldenrod"
+#________________________________________________________________
+
+## Variable Sample.Collection.Date
+
+table(pollen$Sample.Collection.Date)
+min(pollen$Sample.Collection.Date)
+max(pollen$Sample.Collection.Date)
+
+
+## Pollen data has variety of insecticides that not all related to our study, just selected the 8 similar groups of neonicotinoids that detected in other data. 
+```
+ sellecting columns and add to new data frame named "pd".
+ 
+```{r} 
+names(pollen)
+pd <- pollen[c(3,5,6,7,15,16,22,23,25,26,32,41,42,43)]
+dim(pd)
+str(pd)
+head(pd)
+sum(is.na(pd))
+## There is no missing value in "pd" dataset. 
+```
+ Convert characters to factor.
+ 
+```{r} 
+
+
+###pd$Sampling.Event.Type <- as.factor(pd$Sampling.Event.Type)
+###pd$Site.Location.by.Upper.or.Single.Tier.Municipality <-
+###  as.factor(pd$Site.Location.by.Upper.or.Single.Tier.Municipality)
+###pd$Acetamiprid...MOECC..ng.g. <- as.factor(pd$Acetamiprid...MOECC..ng.g.)
+###pd$Clothianidin...MOECC..ng.g. <- as.factor(pd$Clothianidin...MOECC..ng.g.)
+
+
+list(pd$Clothianidin...AFL..ng.g.)
+## lack of information about meaning of "nd","ns",..
+
+table(pd$Acetamiprid...MOECC..ng.g.)
+## have to use the same threshold, most of obs are <mdl,should predict the used mdl,change to numeric , resighn 0 as <mdl for all related variables.
+
+## Change date format to similar format as bees , soil and water data.
+pd$Sample.Collection.Date <- as.Date(pd$Sample.Collection.Date,format = "%B %e, %Y")
+
+```
+
+Give unique names to variables.
+```{r}
+# Use rename() from "dplyr" package.
+
+names(pd)
+
+pd <- rename(pd,"pd.Type"="Sampling.Event.Type")
+pd <- rename(pd,"pd.Date"="Sample.Collection.Date")
+pd <- rename(pd,"pd.Loc"="Site.Location.by.Upper.or.Single.Tier.Municipality")
+pd <- rename(pd,"pd.Acetamiprid"="Acetamiprid...MOECC..ng.g.")
+
+table(pd$Imidacloprid...MOECC..ng.g.)
+sum(is.na(pd$Imidacloprid...MOECC..ng.g.))
+```
+convert insecticide value to numeric
+
+```{r}
+### to remove empty rows in pd data
+pd <- pd[pd$pd.Loc != '',] 
+dim(pd)
+names(pd)
+
+for (col in names(pd)[4:14]) {
+  print(table(pd[col]))
+  pd[pd[[col]] == "<MDL", col] = '0'
+  pd[pd[[col]] == "NS", col] = '0'
+  pd[pd[[col]] == "ND", col] = '0'
+  pd[pd[[col]] == "<MQL", col] = '0'
+  pd[col] = as.numeric(unlist(pd[col]))
+  print(table(pd[col]))
+  
+}
+
+
+###pd$Clothianidin...MOECC..ng.g.[pd$Clothianidin...MOECC..ng.g.=="<MDL"]= "0"
+###pd$Clothianidin...MOECC..ng.g. <- as.numeric(pd$Clothianidin...MOECC..ng.g.)
+###table(pd$Flonicamid...MOECC..ng.g.)
+###pd$Dinotefuran...MOECC..ng.g.[pd$Dinotefuran...MOECC..ng.g.=="<MDL"]= "0"
+###pd$Dinotefuran...MOECC..ng.g. <- as.numeric(pd$Dinotefuran...MOECC..ng.g.)
+
+###pd$Flonicamid...MOECC..ng.g.[pd$Flonicamid...MOECC..ng.g.=="<MDL"]= "0"
+###pd$Imidacloprid...MOECC..ng.g. <- as.numeric(pd$Imidacloprid...MOECC..ng.g.)
+
+###pd$Nitenpyram...MOECC..ng.g.[pd$Nitenpyram...MOECC..ng.g.=="<MDL"]= "0"
+###pd$Nitenpyram...MOECC..ng.g. <- as.numeric(pd$Nitenpyram...MOECC..ng.g.)
+
+###pd$Thiacloprid...MOECC..ng.g.[pd$Thiacloprid...MOECC..ng.g.=="<MDL"]= "0"
+###pd$Thiacloprid...MOECC..ng.g. <- as.numeric(pd$Thiacloprid...MOECC..ng.g.)
+
+###pd$Thiamethoxam...MOECC..ng.g.[pd$Thiamethoxam...MOECC..ng.g.=="<MDL"]= "0"
+###pd$Thiamethoxam...MOECC..ng.g. <- as.numeric(pd$Thiamethoxam...MOECC..ng.g.)
+str(pd)
+
+
+sum(is.na(pd))
+###
+###
+### Codes of this file was run to this line
+###
+###
+
+```
+ 
+
+

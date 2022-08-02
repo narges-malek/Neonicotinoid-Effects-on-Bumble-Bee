@@ -1,0 +1,26 @@
+area,Lat,Long
+"Brant County", 43.1527, -80.1716                                     
+"Bruce County", 44.1313, -81.1507                                      
+"Dufferin County", 44.0528, -80.1875                                    
+"Elgin County", 42.6646, -80.9871                                       
+"Essex County", 42.1639, -82.7347                                       
+"Grey County", 44.4660, -80.6327                                         
+"Hamilton, City of ", 43.2557, -79.8711                                 
+"Huron County", 43.6417, -81.6912                                      
+"Kawartha Lakes, City of", 44.5337, -78.9006                           
+"Lambton County", 43.0527, -82.0407                                        
+"Lanark County", 45.0084, -76.3589                                     
+"Middlesex County", 42.9310, -81.4279                                  
+"Milton, Town of ", 43.5183, -79.8774                                   
+"Norfolk County", 42.7967, -80.4136                                    
+"Oxford County", 43.1840, -80.7214                                      
+"Peel, Regional Municipality of ", 43.6766, -79.7848                    
+"Perth County", 43.5187, -81.0755                                       
+"Peterborough County", 44.4599, -78.1712                               
+"Sarnia, City of ", 42.9745, -82.4066                                  
+"Simcoe County", 44.4717, -79.8297                                     
+"Stormont, Dundas and Glengarry, United Counties of", 45.1228, -74.8733
+"Tehkummah, Township of", 45.6564, -82.0121                             
+"Waterloo, Regional Municipality of", 43.4758, -80.5438                
+"Wellington County", 43.7803, -80.5438                                 
+"York, Regional Municipality of", 43.9885, -79.4704                     

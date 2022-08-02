@@ -1,0 +1,7 @@
+area,Lat,Long
+"Big Creek", 42.5937, -80.4768            
+"Garvey Glen Creek", 43.75541, -81.69923   
+"Little Ausable Creek", 43.1813, -81.5256 
+"North Creek", 44.5122, -80.3241          
+"White Ash Creek", 42.40626, -81.85917
+"SPRING CREEK ", 45.2707, -74.5952    
